@@ -121,14 +121,23 @@ async function _getLoggedInUser() {
   const cached = ttlCache.get(cacheKey);
   if (cached !== null) return cached;
 
-  // Validate the session — if this throws the token is expired/revoked
+  // Validate the session with Appwrite
   let authUser: { $id: string; name: string; email: string; $createdAt: string };
   try {
     const { account } = createSessionClient(sessionSecret);
     authUser = await account.get();
   } catch (err) {
-    console.error("[getLoggedInUser] Invalid session:", err);
-    cookieStore.delete("appwrite-session");
+    const code = (err as { code?: number }).code;
+    const isAuthFailure = code === 401 || code === 403;
+    if (isAuthFailure) {
+      // Session is genuinely expired or revoked — remove the stale cookie
+      console.error("[getLoggedInUser] Session expired/revoked:", code);
+      cookieStore.delete("appwrite-session");
+    } else {
+      // Transient error (network timeout, DNS, Appwrite outage) — keep the
+      // cookie so the user isn't logged out on the next request
+      console.warn("[getLoggedInUser] Transient Appwrite error, keeping session:", (err as Error).message);
+    }
     return null;
   }
 

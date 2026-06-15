@@ -97,6 +97,7 @@ export default function BotsPage() {
   const [qrObtained, setQrObtained] = useState(false);
   // Track whether the initial session setup is done and we should start polling
   const [shouldPoll, setShouldPoll] = useState(false);
+  const [connectedPhone, setConnectedPhone] = useState("");
   // Ref so the polling closure always reads the latest session ID
   const sessionIdRef = useRef(sessionId);
   useEffect(() => { sessionIdRef.current = sessionId; }, [sessionId]);
@@ -384,44 +385,39 @@ export default function BotsPage() {
         throw new Error(`Failed to start session on OpenWA. HTTP status ${startRes.status}`);
       }
 
-      setSessionStatus("Loading QR Code...");
-
-      // Step C: Get QR Code url using the correct ID
-      const qrRes = await fetch(`/api/openwa/sessions/${actualSessionId}/qr`);
-      
-      if (qrRes.ok) {
-        const contentType = qrRes.headers.get("content-type") || "";
-        if (contentType.includes("application/json")) {
-          const qrData = await qrRes.json();
-          const nestedData = qrData.data || qrData;
-          const qrCodeStr = nestedData.qrCode || nestedData.image || nestedData.qr || nestedData.code || qrData.code || "";
-          
-          if (qrCodeStr.startsWith("data:image")) {
-            setQrUrl(qrCodeStr);
-            setQrObtained(true);
-            setSessionStatus("Waiting for WhatsApp scan...");
-          } else if (qrCodeStr) {
-            const qrImg = await QRCode.toDataURL(qrCodeStr);
-            setQrUrl(qrImg);
-            setQrObtained(true);
-            setSessionStatus("Waiting for WhatsApp scan...");
+      // Step C: Poll for QR — OpenWA launches Chrome async so QR isn't
+      // instantly available after /start returns. Retry up to 24× (~2 min).
+      setSessionStatus("Waiting for QR code...");
+      let qrCodeStr = "";
+      for (let attempt = 0; attempt < 24; attempt++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        setSessionStatus(`Loading QR Code... (${attempt + 1}/24)`);
+        try {
+          const qrRes = await fetch(`/api/openwa/sessions/${actualSessionId}/qr`);
+          if (qrRes.ok) {
+            const contentType = qrRes.headers.get("content-type") || "";
+            if (contentType.includes("application/json")) {
+              const qrData = await qrRes.json();
+              const nested = qrData.data || qrData;
+              qrCodeStr = nested.qrCode || nested.image || nested.qr || nested.code || qrData.code || "";
+            } else {
+              qrCodeStr = await qrRes.text();
+            }
+            if (qrCodeStr) break;
           }
-        } else {
-          const qrText = await qrRes.text();
-          if (qrText.startsWith("data:image")) {
-            setQrUrl(qrText);
-            setQrObtained(true);
-            setSessionStatus("Waiting for WhatsApp scan...");
-          } else if (qrText) {
-            const qrImg = await QRCode.toDataURL(qrText);
-            setQrUrl(qrImg);
-            setQrObtained(true);
-            setSessionStatus("Waiting for WhatsApp scan...");
-          }
-        }
-      } else {
-        throw new Error("Unable to retrieve QR pairing token from OpenWA.");
+        } catch { /* keep retrying */ }
       }
+
+      if (!qrCodeStr) {
+        throw new Error("QR code not available after 2 minutes. OpenWA may still be initialising — try again.");
+      }
+
+      const qrImg = qrCodeStr.startsWith("data:image")
+        ? qrCodeStr
+        : await QRCode.toDataURL(qrCodeStr);
+      setQrUrl(qrImg);
+      setQrObtained(true);
+      setSessionStatus("Waiting for WhatsApp scan...");
 
       // Now that session is fully set up and QR obtained, start polling for connection
       setShouldPoll(true);
@@ -479,6 +475,9 @@ export default function BotsPage() {
             clearInterval(activeInterval);
             setShouldPoll(false);
             setConnectionStep("success");
+            // Capture real phone number from session data
+            const phone = matchedStatus.phone || matchedStatus.phoneNumber || "";
+            if (phone) setConnectedPhone(phone);
             toast.success("WhatsApp account linked successfully!");
             
             // Register Webhook — URL resolved server-side so Docker internal
@@ -543,7 +542,7 @@ export default function BotsPage() {
       id: sessionId,
       name: newBotName,
       description: newBotDesc,
-      phoneNumber: "+1 (555) 012-9900", // simulated
+      phoneNumber: connectedPhone || "Connected",
       status: "active",
       aiModel: newBotModel,
       systemPrompt: newBotPrompt,
@@ -590,6 +589,7 @@ export default function BotsPage() {
     setQrError(false);
     setQrObtained(false);
     setShouldPoll(false);
+    setConnectedPhone("");
     setSessionStatus("Initializing browser...");
   };
  
