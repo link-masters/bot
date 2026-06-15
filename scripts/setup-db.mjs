@@ -67,8 +67,10 @@ async function safe(label, fn) {
     await fn();
     log(`✅  ${label}`);
   } catch (e) {
-    if (e?.code === 409 || e?.code === 400) {
-      log(`⏭   ${label} (already exists)`);
+    // 409 = already exists, 400 = attribute already exists
+    // 403 on db.create = plan limit reached but db may already exist
+    if (e?.code === 409 || e?.code === 400 || e?.code === 403) {
+      log(`⏭   ${label} (already exists or plan limit — skipping)`);
     } else {
       log(`❌  ${label} — ${e?.message ?? e}`);
       throw e;

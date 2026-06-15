@@ -40,7 +40,10 @@ interface MessageItem {
 }
 
 export default function AnalyticsPage() {
+  const [mounted, setMounted] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => { setMounted(true); }, []);
   const [statsData, setStatsData] = useState({
     totalVolume: 0,
     successful: 0,
@@ -285,7 +288,7 @@ export default function AnalyticsPage() {
             </div>
           </CardHeader>
           <CardContent className="h-80 select-none pt-4">
-            <ResponsiveContainer width="100%" height="100%">
+            {mounted && <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={dailyChartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorMessages" x1="0" y1="0" x2="0" y2="1">
@@ -341,7 +344,7 @@ export default function AnalyticsPage() {
                   name="Messages Processed"
                 />
               </AreaChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer>}
           </CardContent>
         </Card>
 
@@ -354,7 +357,7 @@ export default function AnalyticsPage() {
             </div>
           </CardHeader>
           <CardContent className="h-80 select-none pt-4">
-            <ResponsiveContainer width="100%" height="100%">
+            {mounted && <ResponsiveContainer width="100%" height="100%">
               <BarChart data={botPerformancesData} layout="vertical" margin={{ top: 10, right: 10, left: -10, bottom: 10 }}>
                 <defs>
                   <linearGradient id="barGradient" x1="0" y1="0" x2="1" y2="0">
@@ -411,7 +414,7 @@ export default function AnalyticsPage() {
                   name="Success Rate (%)"
                 />
               </BarChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer>}
           </CardContent>
         </Card>
       </div>

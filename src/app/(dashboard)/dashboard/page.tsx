@@ -13,14 +13,14 @@ import {
   ArrowRight,
   MessageCircle,
   Clock,
-  Sparkles,
   Loader2,
   QrCode,
   Wand2,
   ChevronLeft,
   ChevronRight,
+  Zap,
+  MessageSquareText,
 } from "lucide-react";
-import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import {
   Dialog,
@@ -256,8 +256,6 @@ export default function DashboardHome() {
     { label: "AI Accuracy", value: "98.4%", change: "+0.6% vs avg", icon: Percent, color: "text-amber-500 dark:text-amber-400", bg: "bg-amber-500/10 dark:bg-amber-500/20" },
   ];
 
-  // Limit bar percentage (e.g. out of 10,000 messages)
-  const usagePercentage = Math.min((totalMessagesCount / 10000) * 100, 100);
 
   return (
     <div className="space-y-6">
@@ -428,94 +426,163 @@ export default function DashboardHome() {
       <Dialog open={welcomeOpen} onOpenChange={(open) => {
         if (!open) handleCloseWelcome();
       }}>
-        <DialogContent className="sm:max-w-md text-left p-6 md:p-8">
+        <DialogContent className="sm:max-w-lg text-left p-6 md:p-8">
+
+          {/* ── Step 1: What you can do ── */}
           {currentStep === 1 && (
             <>
               <DialogHeader className="space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-secondary/25 flex items-center justify-center">
-                  <Sparkles className="w-6 h-6 text-primary animate-pulse fill-primary" />
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/10 flex items-center justify-center">
+                  <Bot className="w-6 h-6 text-primary" />
                 </div>
                 <div className="space-y-1">
-                  <DialogTitle className="font-serif text-2xl font-bold">Hello, {userName || "there"}!</DialogTitle>
+                  <DialogTitle className="font-serif text-2xl font-bold">Welcome, {userName || "there"}!</DialogTitle>
                   <DialogDescription className="text-xs text-muted-foreground">
-                    Welcome to BotFlow! Your WhatsApp AI automation setup is active.
+                    BotFlow gives you two powerful tools — WhatsApp automation and an AI chatbot — working together.
                   </DialogDescription>
                 </div>
               </DialogHeader>
 
-              <div className="space-y-4 py-3 text-xs leading-relaxed text-muted-foreground">
-                <p>
-                  BotFlow connects Google Gemini AI models to your WhatsApp numbers to auto-reply to your customers and generate leads with zero latency.
-                </p>
+              <div className="grid grid-cols-2 gap-3 py-4">
+                <div className="p-4 rounded-xl border border-green-500/20 bg-green-500/5 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-green-500/15 flex items-center justify-center">
+                      <MessageSquareText className="w-3.5 h-3.5 text-green-600 dark:text-green-400" />
+                    </div>
+                    <span className="text-xs font-bold text-foreground">WhatsApp</span>
+                  </div>
+                  <ul className="space-y-1 text-[11px] text-muted-foreground">
+                    <li>• Connect your phone via QR code</li>
+                    <li>• Auto-reply 24/7 to customers</li>
+                    <li>• Handle multiple numbers</li>
+                    <li>• Real-time message delivery</li>
+                  </ul>
+                </div>
 
-                <div className="p-4 rounded-xl border border-border/40 bg-muted/20 space-y-2.5">
-                  <div className="flex justify-between text-[10px] font-semibold text-foreground">
-                    <span>Monthly Resource Limits</span>
-                    <span className="text-primary">{usagePercentage.toFixed(1)}% used</span>
+                <div className="p-4 rounded-xl border border-primary/20 bg-primary/5 space-y-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-primary/15 flex items-center justify-center">
+                      <Wand2 className="w-3.5 h-3.5 text-primary" />
+                    </div>
+                    <span className="text-xs font-bold text-foreground">AI Chatbot</span>
                   </div>
-                  <Progress value={usagePercentage} className="h-1.5 bg-muted/40" />
-                  <div className="flex justify-between text-[10px] text-muted-foreground">
-                    <span>Messages processed:</span>
-                    <span className="font-mono text-foreground font-semibold">{totalMessagesCount.toLocaleString()} / 10,000</span>
-                  </div>
+                  <ul className="space-y-1 text-[11px] text-muted-foreground">
+                    <li>• Powered by Gemini &amp; DeepSeek</li>
+                    <li>• Custom system prompts</li>
+                    <li>• Multi-turn conversations</li>
+                    <li>• Test in the Playground</li>
+                  </ul>
                 </div>
               </div>
+
+              <p className="text-[11px] text-muted-foreground bg-muted/30 px-3 py-2.5 rounded-lg border border-border/30">
+                Together they create a fully automated WhatsApp assistant that understands context and responds like a human — without you lifting a finger.
+              </p>
             </>
           )}
 
+          {/* ── Step 2: Connect WhatsApp ── */}
           {currentStep === 2 && (
             <>
               <DialogHeader className="space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-cyan-500/25 flex items-center justify-center">
-                  <QrCode className="w-6 h-6 text-indigo-500" />
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-green-500/20 to-emerald-500/15 flex items-center justify-center">
+                  <QrCode className="w-6 h-6 text-green-600 dark:text-green-400" />
                 </div>
                 <div className="space-y-1">
-                  <DialogTitle className="font-serif text-2xl font-bold">Link WhatsApp Number</DialogTitle>
+                  <DialogTitle className="font-serif text-2xl font-bold">Connect WhatsApp</DialogTitle>
                   <DialogDescription className="text-xs text-muted-foreground">
-                    Step 1: Connect your phone number to start automating.
+                    Link your phone number in 3 steps — no app installs, no extra hardware.
                   </DialogDescription>
                 </div>
               </DialogHeader>
 
-              <div className="space-y-3 py-3 text-xs leading-relaxed text-muted-foreground">
-                <p>
-                  Follow these simple steps to link your WhatsApp phone number to a bot instance:
-                </p>
-                <ol className="space-y-2 list-decimal list-inside pl-1">
-                  <li>Navigate to the <Link href="/bots" className="text-primary hover:underline font-semibold">Bots</Link> section from the sidebar menu.</li>
-                  <li>Click on <span className="font-semibold text-foreground">Connect Bot</span> or select an existing bot layout.</li>
-                  <li>Open WhatsApp on your phone, go to <span className="font-semibold text-foreground">Linked Devices</span>, and scan the QR code displayed on screen.</li>
-                </ol>
-                <p className="text-[11px] bg-muted/30 p-2.5 rounded-lg border border-border/20 text-muted-foreground mt-2">
-                  Once connected, your bot will be able to intercept incoming messages and auto-reply automatically using AI.
-                </p>
+              <div className="space-y-3 py-3">
+                {[
+                  {
+                    n: "1",
+                    title: "Create a Bot",
+                    body: 'Go to Bots → click "Connect Bot", give it a name and choose an AI model.',
+                    color: "bg-green-500/10 text-green-600 dark:text-green-400",
+                  },
+                  {
+                    n: "2",
+                    title: "Scan the QR Code",
+                    body: 'Open WhatsApp on your phone → Linked Devices → Link a Device → scan the QR.',
+                    color: "bg-green-500/10 text-green-600 dark:text-green-400",
+                  },
+                  {
+                    n: "3",
+                    title: "Go Live",
+                    body: "Your number is now connected. Any incoming WhatsApp message triggers the AI reply automatically.",
+                    color: "bg-green-500/10 text-green-600 dark:text-green-400",
+                  },
+                ].map((s) => (
+                  <div key={s.n} className="flex gap-3 items-start">
+                    <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0 mt-0.5 ${s.color}`}>{s.n}</span>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">{s.title}</p>
+                      <p className="text-[11px] text-muted-foreground">{s.body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-start gap-2 bg-amber-500/5 border border-amber-500/20 rounded-lg px-3 py-2.5 mt-1">
+                <Zap className="w-3.5 h-3.5 text-amber-500 flex-shrink-0 mt-0.5" />
+                <p className="text-[11px] text-muted-foreground">Use a number dedicated to your business — not your personal one. WhatsApp allows one linked device session at a time.</p>
               </div>
             </>
           )}
 
+          {/* ── Step 3: Configure the AI Chatbot ── */}
           {currentStep === 3 && (
             <>
               <DialogHeader className="space-y-3">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-green-500/25 flex items-center justify-center">
-                  <Wand2 className="w-6 h-6 text-emerald-500" />
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-purple-500/15 flex items-center justify-center">
+                  <Wand2 className="w-6 h-6 text-primary" />
                 </div>
                 <div className="space-y-1">
-                  <DialogTitle className="font-serif text-2xl font-bold">Customize & Test AI</DialogTitle>
+                  <DialogTitle className="font-serif text-2xl font-bold">Configure Your AI Bot</DialogTitle>
                   <DialogDescription className="text-xs text-muted-foreground">
-                    Step 2: Design your bot persona and play test.
+                    Teach the AI who it is and what it knows — then test it before going live.
                   </DialogDescription>
                 </div>
               </DialogHeader>
 
-              <div className="space-y-3 py-3 text-xs leading-relaxed text-muted-foreground">
-                <p>
-                  Give your AI bot unique directives and system prompts to represent your business style:
-                </p>
-                <ul className="space-y-2 list-disc list-inside pl-1">
-                  <li><span className="font-semibold text-foreground">System Prompt:</span> Teach the AI about your products, pricing, and guidelines.</li>
-                  <li><span className="font-semibold text-foreground">AI Models:</span> Select Gemini Flash Lite for extremely fast replies or Gemini Pro for complex logic.</li>
-                  <li><span className="font-semibold text-foreground">AI Playground:</span> Test conversations in real-time inside the playground simulator before going live.</li>
-                </ul>
+              <div className="space-y-3 py-3">
+                {[
+                  {
+                    icon: <Bot className="w-3.5 h-3.5 text-primary" />,
+                    title: "System Prompt",
+                    body: "Write who the bot is: your business name, tone, products, pricing, FAQs. The AI uses this as its brain.",
+                    bg: "bg-primary/10",
+                  },
+                  {
+                    icon: <Zap className="w-3.5 h-3.5 text-amber-500" />,
+                    title: "Choose an AI Model",
+                    body: "Gemini Flash Lite for instant replies, Gemini Pro for complex reasoning, DeepSeek for cost efficiency.",
+                    bg: "bg-amber-500/10",
+                  },
+                  {
+                    icon: <MessageSquare className="w-3.5 h-3.5 text-indigo-500" />,
+                    title: "Test in Playground",
+                    body: 'Go to Playground, pick your bot, and chat with it like a customer would — before it goes live on WhatsApp.',
+                    bg: "bg-indigo-500/10",
+                  },
+                ].map((item) => (
+                  <div key={item.title} className="flex gap-3 items-start">
+                    <div className={`w-6 h-6 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5 ${item.bg}`}>{item.icon}</div>
+                    <div>
+                      <p className="text-xs font-semibold text-foreground">{item.title}</p>
+                      <p className="text-[11px] text-muted-foreground">{item.body}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2 bg-primary/5 border border-primary/20 rounded-lg px-3 py-2.5 mt-1">
+                <MessageSquareText className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                <p className="text-[11px] text-muted-foreground">Once happy with the responses, activate the bot from the <Link href="/bots" onClick={handleCloseWelcome} className="text-primary font-semibold hover:underline">Bots</Link> page and it handles WhatsApp automatically.</p>
               </div>
             </>
           )}
