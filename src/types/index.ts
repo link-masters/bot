@@ -7,8 +7,7 @@ export interface User {
   email: string;
   avatar?: string;
   plan: "starter" | "growth" | "business";
-  stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
+
   subscriptionStatus: "active" | "inactive" | "trialing" | "canceled";
   messageCount: number;
   messageLimit: number;
@@ -66,8 +65,6 @@ export interface Message {
 export interface Subscription {
   $id: string;
   userId: string;
-  stripeSubscriptionId: string;
-  stripePriceId: string;
   plan: string;
   status: string;
   amount: number;
@@ -96,8 +93,6 @@ export interface Plan {
   name: string;
   price: number;
   yearlyPrice: number;
-  stripePriceId: string;
-  stripeYearlyPriceId: string;
   description: string;
   features: string[];
   limits: {
@@ -114,8 +109,6 @@ export const PLANS: Plan[] = [
     name: "Starter",
     price: 29,
     yearlyPrice: 19,
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_STARTER_PRICE_ID || "",
-    stripeYearlyPriceId: "",
     description: "Perfect for individuals and small businesses",
     features: [
       "1 WhatsApp Bot",
@@ -132,8 +125,6 @@ export const PLANS: Plan[] = [
     name: "Growth",
     price: 79,
     yearlyPrice: 59,
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_GROWTH_PRICE_ID || "",
-    stripeYearlyPriceId: "",
     description: "For growing businesses",
     features: [
       "5 WhatsApp Bots",
@@ -153,8 +144,6 @@ export const PLANS: Plan[] = [
     name: "Business",
     price: 199,
     yearlyPrice: 149,
-    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_BUSINESS_PRICE_ID || "",
-    stripeYearlyPriceId: "",
     description: "For large enterprises",
     features: [
       "Unlimited Bots",

@@ -1,0 +1,98 @@
+# BotFlow — Full Stack Docker Compose
+# Bundles the Next.js app + OpenWA WhatsApp gateway in one command.
+#
+# Quick start:
+#   cp .env.example .env
+#   docker compose up -d
+#
+# Services:
+#   openwa-api   → http://localhost:2785/api  (WhatsApp REST API)
+#   botflow      → http://localhost:3000      (Next.js dashboard)
+
+services:
+
+  # ── OpenWA WhatsApp API Gateway ──────────────────────────────────────────
+  openwa-api:
+    image: ghcr.io/rmyndharis/openwa:latest
+    container_name: openwa-api
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:2785:2785"
+    environment:
+      - NODE_ENV=production
+      - PORT=2785
+      - DATABASE_TYPE=sqlite
+      - DATABASE_NAME=/app/data/openwa.sqlite
+      - DATABASE_SYNCHRONIZE=true
+      - ENGINE_TYPE=whatsapp-web.js
+      - SESSION_DATA_PATH=/app/data/sessions
+      - PUPPETEER_HEADLESS=true
+      - PUPPETEER_ARGS=--no-sandbox,--disable-setuid-sandbox,--disable-dev-shm-usage,--disable-gpu
+      - STORAGE_TYPE=local
+      - STORAGE_LOCAL_PATH=/app/data/media
+      - WEBHOOK_TIMEOUT=10000
+      - WEBHOOK_MAX_RETRIES=3
+      - WEBHOOK_RETRY_DELAY=5000
+      - API_MASTER_KEY=${OPENWA_API_KEY:-}
+      - CORS_ORIGINS=*
+      - AUTO_START_SESSIONS=true
+    volumes:
+      - openwa-data:/app/data
+    healthcheck:
+      test:
+        [
+          "CMD", "node", "-e",
+          "require('http').get('http://localhost:2785/api/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 45s
+
+  # ── BotFlow Next.js App ───────────────────────────────────────────────────
+  botflow:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-BotFlow}
+        NEXT_PUBLIC_APPWRITE_ENDPOINT: ${NEXT_PUBLIC_APPWRITE_ENDPOINT:-https://cloud.appwrite.io/v1}
+        NEXT_PUBLIC_APPWRITE_PROJECT_ID: ${NEXT_PUBLIC_APPWRITE_PROJECT_ID:-your_project_id}
+        NEXT_PUBLIC_APPWRITE_DATABASE_ID: ${NEXT_PUBLIC_APPWRITE_DATABASE_ID:-whatsapp_saas_db}
+    container_name: botflow
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      # OpenWA — internal docker network hostname
+      - OPENWA_BASE_URL=http://openwa-api:2785
+      - OPENWA_API_KEY=${OPENWA_API_KEY:-}
+      # Gemini
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      # n8n (optional)
+      - N8N_WEBHOOK_URL=${N8N_WEBHOOK_URL:-http://localhost:5678/webhook/whatsapp-webhook}
+      # App
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+      # Appwrite
+      - NEXT_PUBLIC_APPWRITE_ENDPOINT=${NEXT_PUBLIC_APPWRITE_ENDPOINT:-https://cloud.appwrite.io/v1}
+      - NEXT_PUBLIC_APPWRITE_PROJECT_ID=${NEXT_PUBLIC_APPWRITE_PROJECT_ID:-your_project_id}
+      - APPWRITE_API_KEY=${APPWRITE_API_KEY:-your_api_key}
+      - NEXT_PUBLIC_APPWRITE_DATABASE_ID=${NEXT_PUBLIC_APPWRITE_DATABASE_ID:-whatsapp_saas_db}
+    volumes:
+      # Persist data.json (bot config + API keys) across container restarts
+      - botflow-data:/app/src/lib
+    depends_on:
+      openwa-api:
+        condition: service_healthy
+
+volumes:
+  openwa-data:
+    driver: local
+  botflow-data:
+    driver: local
+
+networks:
+  default:
+    name: botflow-network

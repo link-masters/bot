@@ -12,12 +12,11 @@ import {
   LogOut,
   Menu,
   X,
-  Bell,
   ChevronLeft,
   ChevronRight,
   User,
   CreditCard,
-  Code2,
+  FlaskConical,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -34,11 +33,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 const menuItems = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
   { href: "/bots", label: "Bots", icon: Bot },
-  { href: "/conversations", label: "Live Chat", icon: MessageSquare },
+  { href: "/playground", label: "Playground", icon: FlaskConical },
   { href: "/analytics", label: "Analytics", icon: BarChart3 },
-  { href: "/integration", label: "Integrations", icon: Code2 },
+  { href: "/pricing", label: "Pricing", icon: CreditCard },
   { href: "/settings", label: "Settings", icon: Settings },
 ];
 
@@ -52,24 +51,31 @@ export default function DashboardLayout({
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [user, setUser] = useState<{ name: string; email: string; avatar?: string } | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
-      setMounted(true);
-    }, 0);
+    const timer = setTimeout(() => setMounted(true), 0);
     return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    fetch("/api/auth/me").then(async (r) => {
+      if (r.status === 401) {
+        // Stale or expired session — the API already cleared the cookie
+        window.location.replace("/login");
+        return;
+      }
+      if (r.ok) {
+        const data = await r.json();
+        setUser(data);
+      }
+    }).catch(() => {});
   }, []);
 
   const handleLogout = async () => {
     try {
-      if (process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID === "your_project_id" || !process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID) {
-        toast.success("Demo Mode: Logged out successfully");
-        router.push("/login");
-        return;
-      }
       await signOut();
-      toast.success("Logged out successfully");
-      router.push("/login");
+      window.location.replace("/login");
     } catch {
       toast.error("Failed to log out");
     }
@@ -90,7 +96,7 @@ export default function DashboardLayout({
       {/* Sidebar for Desktop */}
       <aside
         className={cn(
-          "hidden lg:flex flex-col bg-card border-r border-border/50 p-4 justify-between flex-shrink-0 h-full relative z-20 transition-all duration-300 ease-in-out",
+          "hidden lg:flex flex-col bg-card/95 dark:bg-card/80 backdrop-blur-md border-r border-border/40 p-4 justify-between flex-shrink-0 h-full relative z-20 transition-all duration-300 ease-in-out",
           isCollapsed ? "w-20" : "w-64"
         )}
       >
@@ -100,10 +106,10 @@ export default function DashboardLayout({
           {/* Logo */}
           <div className={cn("flex items-center h-10 px-2", isCollapsed ? "justify-center" : "justify-start")}>
             <Link href="/" className="flex items-center gap-2 group flex-shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center group-hover:scale-110 transition-transform">
+              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center transition-all duration-300 group-hover:scale-110 group-hover:rotate-6 shadow-sm group-hover:shadow-[0_0_12px_rgba(var(--primary),0.2)]">
                 <Bot className="w-4 h-4 text-primary-foreground" />
               </div>
-              {!isCollapsed && <span className="font-bold text-xl font-serif">BotFlow</span>}
+              {!isCollapsed && <span className="font-bold text-xl font-serif tracking-tight bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text">BotFlow</span>}
             </Link>
           </div>
 
@@ -116,15 +122,18 @@ export default function DashboardLayout({
                   key={item.href}
                   href={item.href}
                   className={cn(
-                    "flex items-center rounded-lg text-sm font-medium transition-colors text-left",
+                    "flex items-center rounded-lg text-sm font-medium transition-all duration-200 text-left group cursor-pointer",
                     isCollapsed ? "justify-center p-2.5" : "gap-3 px-3 py-2.5",
                     active
-                      ? "bg-primary text-primary-foreground glow"
-                      : "text-muted-foreground hover:bg-accent hover:text-foreground"
+                      ? "bg-primary text-primary-foreground shadow-[0_4px_12px_hsl(var(--primary)/0.25)] dark:shadow-[0_4px_12px_hsl(var(--primary)/0.4)] translate-x-0.5"
+                      : "text-muted-foreground hover:bg-accent/60 hover:text-foreground hover:translate-x-0.5"
                   )}
                   title={isCollapsed ? item.label : undefined}
                 >
-                  <item.icon className="w-4 h-4 flex-shrink-0" />
+                  <item.icon className={cn(
+                    "w-4 h-4 flex-shrink-0 transition-transform duration-200",
+                    !active && "group-hover:scale-110 group-active:scale-95"
+                  )} />
                   {!isCollapsed && <span>{item.label}</span>}
                 </Link>
               );
@@ -133,22 +142,22 @@ export default function DashboardLayout({
         </div>
 
         {/* Sidebar Footer with Expand/Collapse & Sign Out */}
-        <div className="pt-4 border-t border-border/50 space-y-2 overflow-hidden">
+        <div className="pt-4 border-t border-border/40 space-y-2 overflow-hidden">
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setIsCollapsed(!isCollapsed)}
             className={cn(
-              "w-full text-muted-foreground hover:text-foreground rounded-lg cursor-pointer",
-              isCollapsed ? "justify-center px-0" : "justify-start"
+              "w-full text-muted-foreground hover:text-foreground rounded-lg cursor-pointer transition-all duration-200 group",
+              isCollapsed ? "justify-center px-0" : "justify-start hover:translate-x-0.5"
             )}
             title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
           >
             {isCollapsed ? (
-              <ChevronRight className="w-4 h-4 flex-shrink-0" />
+              <ChevronRight className="w-4 h-4 flex-shrink-0 transition-transform group-hover:translate-x-0.5" />
             ) : (
               <>
-                <ChevronLeft className="w-4 h-4 flex-shrink-0" />
+                <ChevronLeft className="w-4 h-4 flex-shrink-0 transition-transform group-hover:-translate-x-0.5" />
                 <span className="ml-2">Collapse Sidebar</span>
               </>
             )}
@@ -159,12 +168,12 @@ export default function DashboardLayout({
             size="sm"
             onClick={handleLogout}
             className={cn(
-              "w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer",
-              isCollapsed ? "justify-center px-0" : "justify-start"
+              "w-full text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg cursor-pointer transition-all duration-200 group",
+              isCollapsed ? "justify-center px-0" : "justify-start hover:translate-x-0.5"
             )}
             title={isCollapsed ? "Sign Out" : undefined}
           >
-            <LogOut className="w-4 h-4 flex-shrink-0" />
+            <LogOut className="w-4 h-4 flex-shrink-0 transition-transform group-hover:scale-110" />
             {!isCollapsed && <span className="ml-2">Sign Out</span>}
           </Button>
         </div>
@@ -229,45 +238,40 @@ export default function DashboardLayout({
       {/* Main Workspace */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* Header */}
-        <header className="h-16 border-b border-border/50 bg-card dark:bg-card/50 dark:backdrop-blur-md px-6 flex items-center justify-between z-40">
+        <header className="h-16 border-b border-border/40 bg-card/80 dark:bg-card/45 backdrop-blur-md px-6 flex items-center justify-between z-40">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-2 -ml-2 rounded-md hover:bg-accent lg:hidden"
+              className="p-2 -ml-2 rounded-md hover:bg-accent/60 lg:hidden cursor-pointer"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <h1 className="font-bold text-lg md:text-xl font-serif text-left">{activeItem.label}</h1>
+            <h1 className="font-bold text-lg md:text-xl font-serif text-left tracking-tight">{activeItem.label}</h1>
           </div>
 
           <div className="flex items-center gap-3">
             <ThemeToggle />
-            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-md relative">
-              <Bell className="w-[1.2rem] h-[1.2rem]" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary animate-ping" />
-              <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary" />
-            </Button>
-            <div className="w-px h-6 bg-border/50 mx-1" />
+            <div className="w-px h-6 bg-border/40 mx-1" />
             
             {/* Header Profile Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="focus:outline-none rounded-full cursor-pointer transition-transform hover:scale-105">
                   <Avatar className="w-8 h-8 border border-border">
-                    <AvatarImage src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" />
-                    <AvatarFallback>U</AvatarFallback>
+                    {user?.avatar && <AvatarImage src={user.avatar} />}
+                    <AvatarFallback>{user?.name?.[0]?.toUpperCase() ?? "U"}</AvatarFallback>
                   </Avatar>
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-64 text-left p-1.5">
                 <div className="flex items-center gap-3 p-3 bg-muted/30 rounded-lg mb-1.5 border border-border/40">
                   <Avatar className="w-9 h-9 border border-border flex-shrink-0">
-                    <AvatarImage src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150" />
-                    <AvatarFallback>U</AvatarFallback>
+                    {user?.avatar && <AvatarImage src={user.avatar} />}
+                    <AvatarFallback>{user?.name?.[0]?.toUpperCase() ?? "U"}</AvatarFallback>
                   </Avatar>
                   <div className="flex flex-col min-w-0">
-                    <span className="font-semibold text-sm truncate">Demo User</span>
-                    <span className="text-xs text-muted-foreground truncate">user@botflow.ai</span>
+                    <span className="font-semibold text-sm truncate">{user?.name ?? "—"}</span>
+                    <span className="text-xs text-muted-foreground truncate">{user?.email ?? "—"}</span>
                   </div>
                 </div>
                 <DropdownMenuItem asChild>

@@ -1,27 +1,28 @@
-// lib/appwrite/server.ts
 import { Client, Databases, Account, Users } from "node-appwrite";
+
+const ENDPOINT = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!;
+const PROJECT  = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!;
+const API_KEY  = process.env.APPWRITE_API_KEY!;
 
 export function createAdminClient() {
   const client = new Client()
-    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!)
-    .setKey(process.env.APPWRITE_API_KEY!);
-
+    .setEndpoint(ENDPOINT)
+    .setProject(PROJECT)
+    .setKey(API_KEY);
   return {
     databases: new Databases(client),
-    account: new Account(client),
-    users: new Users(client),
+    account:   new Account(client),
+    users:     new Users(client),
   };
 }
 
-export function createSessionClient(session: string) {
+export function createSessionClient(secret: string) {
   const client = new Client()
-    .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT!)
-    .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID!)
-    .setSession(session);
-
+    .setEndpoint(ENDPOINT)
+    .setProject(PROJECT)
+    .setSession(secret);
   return {
     databases: new Databases(client),
-    account: new Account(client),
+    account:   new Account(client),
   };
 }

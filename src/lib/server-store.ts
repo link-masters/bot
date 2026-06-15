@@ -1,88 +1,33 @@
-import fs from "fs";
-import path from "path";
+// Runtime configuration read exclusively from environment variables.
+// All mutable data (bots, user settings) lives in Appwrite — no file I/O.
 
-const DATA_FILE = path.join(process.cwd(), "src/lib/data.json");
-
-export interface BotConfig {
-  id: string;
-  name: string;
-  description: string;
-  phoneNumber: string;
-  status: "active" | "inactive";
-  aiModel: string;
-  systemPrompt: string;
-  welcomeMessage: string;
+export interface AppSecrets {
+  geminiKey: string;
+  deepseekKey: string;
+  openwaKey: string;
 }
 
 export interface AppConfig {
-  geminiKey: string;
-  openwaKey: string;
   openwaUrl: string;
   n8nWebhookUrl: string;
   automationBackend: "builtin" | "n8n";
-  bots: BotConfig[];
 }
 
-const defaultConfig: AppConfig = {
-  geminiKey: "",
-  openwaKey: "dev-admin-key",
-  openwaUrl: "http://127.0.0.1:2785",
-  n8nWebhookUrl: "http://localhost:5678/webhook/whatsapp-webhook",
-  automationBackend: "builtin",
-  bots: [
-    {
-      id: "1",
-      name: "Sales Assistant",
-      description: "Answers product questions and handles lead capture.",
-      phoneNumber: "+1 (555) 019-2834",
-      status: "active",
-      aiModel: "models/gemini-flash-lite-latest",
-      systemPrompt: "You are a friendly sales representative for BotFlow. Help users understand our plans and sign up.",
-      welcomeMessage: "Hi there! I am your sales assistant. How can I help you grow your business today?"
-    },
-    {
-      id: "2",
-      name: "Support Bot",
-      description: "Handles common ticket resolutions and FAQs.",
-      phoneNumber: "+1 (555) 014-9382",
-      status: "active",
-      aiModel: "models/gemini-flash-lite-latest",
-      systemPrompt: "You are a customer support agent. Resolve customer inquiries politely based on our help docs.",
-      welcomeMessage: "Hello! Welcome to Support. Please describe your issue and I will resolve it for you."
-    }
-  ]
-};
-
-export function getStore(): AppConfig {
-  try {
-    if (!fs.existsSync(DATA_FILE)) {
-      // Ensure the directory exists
-      const dir = path.dirname(DATA_FILE);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-      fs.writeFileSync(DATA_FILE, JSON.stringify(defaultConfig, null, 2), "utf-8");
-      return defaultConfig;
-    }
-
-    const fileContent = fs.readFileSync(DATA_FILE, "utf-8");
-    return JSON.parse(fileContent) as AppConfig;
-  } catch (error) {
-    console.error("[Server Store Read Error]:", error);
-    return defaultConfig;
-  }
+export function getConfig(): AppConfig {
+  return {
+    openwaUrl: process.env.OPENWA_BASE_URL || "http://127.0.0.1:2785",
+    n8nWebhookUrl: process.env.N8N_WEBHOOK_URL || "http://localhost:5678/webhook/whatsapp-webhook",
+    automationBackend: (process.env.AUTOMATION_BACKEND as "builtin" | "n8n") || "builtin",
+  };
 }
 
-export function saveStore(config: AppConfig): boolean {
-  try {
-    const dir = path.dirname(DATA_FILE);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(DATA_FILE, JSON.stringify(config, null, 2), "utf-8");
-    return true;
-  } catch (error) {
-    console.error("[Server Store Write Error]:", error);
-    return false;
-  }
+export function getSecrets(): AppSecrets {
+  return {
+    geminiKey: process.env.GEMINI_API_KEY || "",
+    deepseekKey: process.env.DEEPSEEK_API_KEY || "",
+    openwaKey: process.env.OPENWA_API_KEY || "",
+  };
 }
+
+// Legacy alias — keeps old call-sites compiling while we migrate them.
+export const getStore = getConfig;

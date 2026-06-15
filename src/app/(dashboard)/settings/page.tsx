@@ -6,380 +6,312 @@ import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  User,
-  Key,
-  CreditCard,
-  Eye,
-  EyeOff,
-  Clipboard,
-} from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import { Separator } from "@/components/ui/separator";
+import { Loader2, User, Lock, CreditCard, BarChart3 } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
+
+interface UserProfile {
+  $id: string;
+  userId: string;
+  name: string;
+  email: string;
+  plan: string;
+  subscriptionStatus: string;
+  messageCount: number;
+  messageLimit: number;
+  isActive: boolean;
+  trialEndsAt?: string;
+  createdAt: string;
+  avatar?: string;
+}
 
 export default function SettingsPage() {
-  const [name, setName] = useState("Demo User");
-  const [email, setEmail] = useState("user@botflow.ai");
-  const [geminiKey, setGeminiKey] = useState("AIzaSyD-xxxxxxxxxxxxxxxxxxxxxxxx");
-  const [openwaKey, setOpenwaKey] = useState("dev-admin-key");
-  const [openwaUrl, setOpenwaUrl] = useState("http://127.0.0.1:2785");
-  const [n8nWebhookUrl, setN8nWebhookUrl] = useState("http://localhost:5678/webhook/whatsapp");
-  const [automationBackend, setAutomationBackend] = useState<"builtin" | "n8n">("builtin");
-  const [showGemini, setShowGemini] = useState(false);
-  const [showOpenwa, setShowOpenwa] = useState(false);
-  const [activeTab, setActiveTab] = useState<"profile" | "keys" | "billing">("profile");
+  const [user, setUser] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Profile form state
+  const [name, setName] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const savedName = localStorage.getItem("botflow_user_name");
-      const savedEmail = localStorage.getItem("botflow_user_email");
-      const savedGemini = localStorage.getItem("botflow_gemini_key");
-      const savedOpenwa = localStorage.getItem("botflow_openwa_key");
-      const savedOpenwaUrl = localStorage.getItem("botflow_openwa_url");
-      const savedN8nWebhookUrl = localStorage.getItem("botflow_n8n_webhook_url");
-      const savedBackend = localStorage.getItem("botflow_automation_backend");
-
-      const timer = setTimeout(() => {
-        if (savedName) setName(savedName);
-        if (savedEmail) setEmail(savedEmail);
-        if (savedGemini) setGeminiKey(savedGemini);
-        if (savedOpenwa) setOpenwaKey(savedOpenwa);
-        if (savedOpenwaUrl) setOpenwaUrl(savedOpenwaUrl);
-        if (savedN8nWebhookUrl) setN8nWebhookUrl(savedN8nWebhookUrl);
-        if (savedBackend) setAutomationBackend(savedBackend as "builtin" | "n8n");
-      }, 0);
-
-      return () => clearTimeout(timer);
-    }
+    fetch("/api/auth/me").then(async (r) => {
+      if (r.status === 401) {
+        window.location.replace("/login");
+        return;
+      }
+      if (r.ok) {
+        const data = await r.json();
+        setUser(data);
+        setName(data.name || "");
+      }
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveName = async (e: React.FormEvent) => {
     e.preventDefault();
-    localStorage.setItem("botflow_user_name", name);
-    localStorage.setItem("botflow_user_email", email);
-    toast.success("Profile updated successfully!");
-  };
-
-  const handleSaveKeys = async (e: React.FormEvent) => {
-    e.preventDefault();
-    localStorage.setItem("botflow_gemini_key", geminiKey);
-    localStorage.setItem("botflow_openwa_key", openwaKey);
-    localStorage.setItem("botflow_openwa_url", openwaUrl);
-    localStorage.setItem("botflow_n8n_webhook_url", n8nWebhookUrl);
-    localStorage.setItem("botflow_automation_backend", automationBackend);
-
+    if (!name.trim()) return;
+    setSavingProfile(true);
     try {
-      const res = await fetch("/api/settings", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          geminiKey,
-          openwaKey,
-          openwaUrl,
-          n8nWebhookUrl,
-          automationBackend
-        })
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
       });
-      if (res.ok) {
-        toast.success("API Credentials & Host settings saved and synced successfully!");
-      } else {
-        throw new Error("Server sync failed");
-      }
-    } catch {
-      toast.error("Settings saved locally, but failed to sync to Next.js server.");
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update.");
+      setUser((prev) => prev ? { ...prev, name } : prev);
+      toast.success("Name updated successfully.");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to update name.");
+    } finally {
+      setSavingProfile(false);
     }
   };
 
-  const handleCopyKey = (key: string, name: string) => {
-    navigator.clipboard.writeText(key);
-    toast.success(`${name} copied to clipboard!`);
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentPassword || !newPassword) return;
+    if (newPassword.length < 8) {
+      toast.error("New password must be at least 8 characters.");
+      return;
+    }
+    setSavingPassword(true);
+    try {
+      const res = await fetch("/api/auth/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentPassword, newPassword }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Failed to update password.");
+      toast.success("Password changed successfully.");
+      setCurrentPassword("");
+      setNewPassword("");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to change password.");
+    } finally {
+      setSavingPassword(false);
+    }
   };
 
+  const usagePct = user
+    ? Math.min(Math.round((user.messageCount / (user.messageLimit || 1000)) * 100), 100)
+    : 0;
+
+  const planLabel =
+    user?.plan === "pro"
+      ? "Pro"
+      : user?.plan === "growth"
+      ? "Growth"
+      : user?.plan === "enterprise"
+      ? "Enterprise"
+      : "Starter";
+
+  const statusColor =
+    user?.subscriptionStatus === "active"
+      ? "bg-green-500/10 text-green-600 border-green-500/20 dark:text-green-400"
+      : "bg-yellow-500/10 text-yellow-600 border-yellow-500/20 dark:text-yellow-400";
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[40vh]">
+        <Loader2 className="w-6 h-6 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      <div className="text-left">
-        <p className="text-sm text-muted-foreground">
-          Manage your account profile, API integrations, and billing subscription.
-        </p>
-      </div>
+    <div className="max-w-3xl mx-auto space-y-6 pb-12">
+      <p className="text-sm text-muted-foreground text-left">
+        Manage your account profile, security, and billing.
+      </p>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Navigation tabs for settings */}
-        <div className="md:col-span-1 space-y-2 text-left">
-          <div className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-3 px-2">Settings</div>
-          <button
-            onClick={() => setActiveTab("profile")}
-            className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors cursor-pointer text-left",
-              activeTab === "profile"
-                ? "bg-primary text-primary-foreground font-semibold"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground font-medium"
-            )}
-          >
-            <User className="w-4 h-4" />
-            Profile Manager
-          </button>
-          <button
-            onClick={() => setActiveTab("keys")}
-            className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors cursor-pointer text-left",
-              activeTab === "keys"
-                ? "bg-primary text-primary-foreground font-semibold"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground font-medium"
-            )}
-          >
-            <Key className="w-4 h-4" />
-            API Keys
-          </button>
-          <button
-            onClick={() => setActiveTab("billing")}
-            className={cn(
-              "w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors cursor-pointer text-left",
-              activeTab === "billing"
-                ? "bg-primary text-primary-foreground font-semibold"
-                : "text-muted-foreground hover:bg-accent hover:text-foreground font-medium"
-            )}
-          >
-            <CreditCard className="w-4 h-4" />
-            Subscription & Billing
-          </button>
-        </div>
+      {/* ── PROFILE ── */}
+      <Card className="border-border/40 bg-gradient-to-b from-card/85 to-card/75 backdrop-blur-md">
+        <CardHeader>
+          <div className="flex items-center gap-2 text-left">
+            <User className="w-4 h-4 text-muted-foreground" />
+            <div>
+              <CardTitle className="text-base font-bold font-serif">Profile</CardTitle>
+              <CardDescription className="text-xs">Your public display name and email.</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Avatar + identity */}
+          <div className="flex items-center gap-4">
+            <Avatar className="w-14 h-14 border-2 border-border">
+              {user?.avatar && <AvatarImage src={user.avatar} alt={user.name} />}
+              <AvatarFallback className="text-lg font-bold bg-primary/10 text-primary">
+                {user?.name?.[0]?.toUpperCase() ?? "?"}
+              </AvatarFallback>
+            </Avatar>
+            <div className="text-left">
+              <p className="font-semibold text-sm">{user?.name}</p>
+              <p className="text-xs text-muted-foreground">{user?.email}</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                Member since {user?.createdAt ? new Date(user.createdAt).toLocaleDateString("en-US", { month: "long", year: "numeric" }) : "—"}
+              </p>
+            </div>
+          </div>
 
-        {/* Content Panel */}
-        <div className="md:col-span-2 space-y-6">
-          {activeTab === "profile" && (
-            /* Profile Card */
-            <Card className="border-border/50 bg-card/50">
-              <CardHeader>
-                <div className="text-left">
-                  <CardTitle className="text-lg font-bold font-serif">Profile Settings</CardTitle>
-                  <CardDescription>Update your personal and security details.</CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSaveProfile} className="space-y-4 text-left">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                      <Label htmlFor="prof-name">Full Name</Label>
-                      <Input
-                        id="prof-name"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1.5 col-span-2 sm:col-span-1">
-                      <Label htmlFor="prof-email">Email Address</Label>
-                      <Input
-                        id="prof-email"
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        required
-                      />
-                    </div>
-                  </div>
+          <Separator className="border-border/40" />
 
-                  <div className="space-y-1.5">
-                    <Label htmlFor="prof-password">Change Password</Label>
-                    <Input
-                      id="prof-password"
-                      type="password"
-                      placeholder="Enter new password"
-                    />
-                  </div>
+          <form onSubmit={handleSaveName} className="space-y-4 text-left">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="prof-name">Full Name</Label>
+                <Input
+                  id="prof-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                  disabled={savingProfile}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="prof-email">Email Address</Label>
+                <Input
+                  id="prof-email"
+                  type="email"
+                  value={user?.email ?? ""}
+                  disabled
+                  className="bg-muted/40 cursor-not-allowed"
+                />
+                <p className="text-[10px] text-muted-foreground">Email cannot be changed here.</p>
+              </div>
+            </div>
+            <Button
+              type="submit"
+              size="sm"
+              className="glow h-9 px-5 cursor-pointer"
+              disabled={savingProfile || name === user?.name}
+            >
+              {savingProfile ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Save Name
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
-                  <Button type="submit" className="glow py-5 px-6">
-                    Save Changes
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          )}
+      {/* ── PASSWORD ── */}
+      <Card className="border-border/40 bg-gradient-to-b from-card/85 to-card/75 backdrop-blur-md">
+        <CardHeader>
+          <div className="flex items-center gap-2 text-left">
+            <Lock className="w-4 h-4 text-muted-foreground" />
+            <div>
+              <CardTitle className="text-base font-bold font-serif">Password</CardTitle>
+              <CardDescription className="text-xs">
+                Update your password. Leave blank if you signed in with Google.
+              </CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleChangePassword} className="space-y-4 text-left">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label htmlFor="current-password">Current Password</Label>
+                <Input
+                  id="current-password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                  disabled={savingPassword}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="new-password">New Password</Label>
+                <Input
+                  id="new-password"
+                  type="password"
+                  placeholder="Min. 8 characters"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  disabled={savingPassword}
+                />
+              </div>
+            </div>
+            <Button
+              type="submit"
+              size="sm"
+              variant="outline"
+              className="h-9 px-5 cursor-pointer"
+              disabled={savingPassword || !currentPassword || !newPassword}
+            >
+              {savingPassword ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Change Password
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
 
-          {activeTab === "keys" && (
-            /* API Keys Card */
-            <Card className="border-border/50 bg-card/50">
-              <CardHeader>
-                <div className="text-left">
-                  <CardTitle className="text-lg font-bold font-serif">API Keys & Integrations</CardTitle>
-                  <CardDescription>Manage credentials for Google Gemini AI and OpenWA client.</CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <form onSubmit={handleSaveKeys} className="space-y-4 text-left">
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <Label htmlFor="key-gemini">Google Gemini API Key</Label>
-                      <button
-                        type="button"
-                        onClick={() => setShowGemini(!showGemini)}
-                        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-                      >
-                        {showGemini ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        {showGemini ? "Hide" : "Show"}
-                      </button>
-                    </div>
-                    <div className="flex gap-2">
-                      <Input
-                        id="key-gemini"
-                        type={showGemini ? "text" : "password"}
-                        value={geminiKey}
-                        onChange={(e) => setGeminiKey(e.target.value)}
-                        className="flex-1 font-mono text-xs"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => handleCopyKey(geminiKey, "Gemini API Key")}
-                        className="w-10 h-10 p-0"
-                      >
-                        <Clipboard className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
+      {/* ── SUBSCRIPTION ── */}
+      <Card className="border-border/40 bg-gradient-to-b from-card/85 to-card/75 backdrop-blur-md">
+        <CardHeader>
+          <div className="flex items-center gap-2 text-left">
+            <CreditCard className="w-4 h-4 text-muted-foreground" />
+            <div>
+              <CardTitle className="text-base font-bold font-serif">Subscription</CardTitle>
+              <CardDescription className="text-xs">Your current plan and billing status.</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-xl border border-primary/20 bg-primary/5 dark:bg-primary/10 gap-3">
+            <div className="text-left">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="font-bold text-sm font-serif">{planLabel} Plan</span>
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] py-0 px-2 uppercase font-mono tracking-wider font-semibold border ${statusColor}`}
+                >
+                  {user?.subscriptionStatus ?? "inactive"}
+                </Badge>
+              </div>
+              {user?.trialEndsAt && (
+                <p className="text-xs text-muted-foreground">
+                  Trial ends {new Date(user.trialEndsAt).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                </p>
+              )}
+            </div>
+            <Button variant="outline" size="sm" className="h-8 text-xs cursor-pointer" disabled>
+              Manage Plan
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
 
-                  <div className="space-y-1.5">
-                    <div className="flex justify-between items-center">
-                      <Label htmlFor="key-openwa">OpenWA Instance API Key</Label>
-                      <button
-                        type="button"
-                        onClick={() => setShowOpenwa(!showOpenwa)}
-                        className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-                      >
-                        {showOpenwa ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        {showOpenwa ? "Hide" : "Show"}
-                      </button>
-                    </div>
-                    <div className="flex gap-2">
-                      <Input
-                        id="key-openwa"
-                        type={showOpenwa ? "text" : "password"}
-                        value={openwaKey}
-                        onChange={(e) => setOpenwaKey(e.target.value)}
-                        className="flex-1 font-mono text-xs"
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => handleCopyKey(openwaKey, "OpenWA API Key")}
-                        className="w-10 h-10 p-0"
-                      >
-                        <Clipboard className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="url-openwa">OpenWA Server Host URL</Label>
-                    <Input
-                      id="url-openwa"
-                      type="url"
-                      value={openwaUrl}
-                      onChange={(e) => setOpenwaUrl(e.target.value)}
-                      placeholder="e.g. http://127.0.0.1:2886"
-                      className="font-mono text-xs"
-                      required
-                    />
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      Your local or production OpenWA WhatsApp API container address.
-                    </p>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="url-n8n">n8n Webhook Target URL</Label>
-                    <Input
-                      id="url-n8n"
-                      type="url"
-                      value={n8nWebhookUrl}
-                      onChange={(e) => setN8nWebhookUrl(e.target.value)}
-                      placeholder="e.g. http://localhost:5678/webhook/whatsapp"
-                      className="font-mono text-xs"
-                      required
-                    />
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      The active Webhook URL displayed in your n8n workflow trigger.
-                    </p>
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <Label htmlFor="backend-engine">Active Automation Engine</Label>
-                    <Select value={automationBackend} onValueChange={(val: "builtin" | "n8n") => setAutomationBackend(val)}>
-                      <SelectTrigger id="backend-engine">
-                        <SelectValue placeholder="Select Engine" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="builtin">Next.js SaaS Backend (Native / Built-in)</SelectItem>
-                        <SelectItem value="n8n">n8n Workflow (External Webhook)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-[10px] text-muted-foreground mt-0.5">
-                      Choose whether Next.js responds to messages directly or forwards them to n8n.
-                    </p>
-                  </div>
-
-                  <Button type="submit" className="glow py-5 px-6">
-                    Save Credentials
-                  </Button>
-                </form>
-              </CardContent>
-            </Card>
-          )}
-
-          {activeTab === "billing" && (
-            /* Billing Card */
-            <Card className="border-border/50 bg-card/50">
-              <CardHeader>
-                <div className="text-left">
-                  <CardTitle className="text-lg font-bold font-serif">Subscription Plan</CardTitle>
-                  <CardDescription>Overview of your current billing contract.</CardDescription>
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center p-4 rounded-xl border border-primary/20 bg-primary/5 gap-4">
-                  <div className="text-left">
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="font-bold text-base font-serif">Growth Tier</span>
-                      <Badge className="bg-primary text-primary-foreground text-[10px] py-0 px-2 uppercase font-mono">
-                        Active
-                    </Badge>
-                    </div>
-                    <p className="text-xs text-muted-foreground">
-                      $79 billed monthly. Renews on September 14, 2026.
-                  </p>
-                  </div>
-                  <Button variant="outline" className="w-full sm:w-auto py-5">
-                    Manage in Stripe
-                </Button>
-                </div>
-
-                {/* Resource usage grid */}
-                <div className="grid grid-cols-3 gap-4 pt-2">
-                  {[
-                    { name: "Active Bots", limit: "3 / 5" },
-                    { name: "Phone Numbers", limit: "2 / 5" },
-                    { name: "Messages Limit", limit: "8.9k / 10k" },
-                  ].map((usage) => (
-                    <div key={usage.name} className="p-3.5 rounded-xl border border-border/40 text-center space-y-1 bg-background/20">
-                      <div className="text-sm font-semibold">{usage.limit}</div>
-                      <div className="text-[10px] text-muted-foreground uppercase">{usage.name}</div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
-        </div>
-      </div>
+      {/* ── USAGE ── */}
+      <Card className="border-border/40 bg-gradient-to-b from-card/85 to-card/75 backdrop-blur-md">
+        <CardHeader>
+          <div className="flex items-center gap-2 text-left">
+            <BarChart3 className="w-4 h-4 text-muted-foreground" />
+            <div>
+              <CardTitle className="text-base font-bold font-serif">Usage</CardTitle>
+              <CardDescription className="text-xs">Messages processed this billing period.</CardDescription>
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <div className="flex justify-between text-xs font-medium">
+              <span>Messages</span>
+              <span className="text-muted-foreground">
+                {(user?.messageCount ?? 0).toLocaleString()} / {(user?.messageLimit ?? 1000).toLocaleString()}
+              </span>
+            </div>
+            <Progress value={usagePct} className="h-2 bg-muted/40" />
+            <p className="text-[10px] text-muted-foreground">{usagePct}% of limit used</p>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

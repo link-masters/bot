@@ -30,8 +30,7 @@ export async function setupDatabase() {
   await databases.createStringAttribute(DB_ID, "users", "email", 255, true);
   await databases.createStringAttribute(DB_ID, "users", "avatar", 500, false);
   await databases.createStringAttribute(DB_ID, "users", "plan", 50, true, "starter");
-  await databases.createStringAttribute(DB_ID, "users", "stripeCustomerId", 255, false);
-  await databases.createStringAttribute(DB_ID, "users", "stripeSubscriptionId", 255, false);
+
   await databases.createStringAttribute(DB_ID, "users", "subscriptionStatus", 50, false, "inactive");
   await databases.createIntegerAttribute(DB_ID, "users", "messageCount", false, 0);
   await databases.createIntegerAttribute(DB_ID, "users", "messageLimit", false, 1000);
@@ -91,8 +90,6 @@ export async function setupDatabase() {
   await databases.createCollection(DB_ID, "subscriptions", "Subscriptions");
 
   await databases.createStringAttribute(DB_ID, "subscriptions", "userId", 255, true);
-  await databases.createStringAttribute(DB_ID, "subscriptions", "stripeSubscriptionId", 255, true);
-  await databases.createStringAttribute(DB_ID, "subscriptions", "stripePriceId", 255, true);
   await databases.createStringAttribute(DB_ID, "subscriptions", "plan", 50, true);
   await databases.createStringAttribute(DB_ID, "subscriptions", "status", 50, true);
   await databases.createIntegerAttribute(DB_ID, "subscriptions", "amount", false, 0);
