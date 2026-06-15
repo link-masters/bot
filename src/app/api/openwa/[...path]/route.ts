@@ -43,8 +43,17 @@ async function handleProxy(req: NextRequest) {
     headers.set("X-API-Key", openwaToken);
   }
 
+  // Session start/create launches a headless Chrome — needs up to 90s.
+  // All other calls (health, status checks) use a short 8s timeout.
+  const isSlowOp =
+    subpath.endsWith("/start") ||
+    subpath.endsWith("/stop") ||
+    subpath.endsWith("/restart") ||
+    (req.method === "POST" && subpath === "/sessions");
+  const timeoutMs = isSlowOp ? 90_000 : 8_000;
+
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 3500);
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     let body: string | undefined = undefined;

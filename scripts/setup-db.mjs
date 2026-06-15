@@ -106,7 +106,7 @@ await Promise.all([
   str("users",  "name",               255,  true),
   str("users",  "email",              255,  true),
   str("users",  "avatar",             500,  false),
-  str("users",  "plan",               50,   true,  "starter"),
+  str("users",  "plan",               50,   false, "starter"),  // false = optional so default value is allowed
   str("users",  "subscriptionStatus", 50,   false, "inactive"),
   int("users",  "messageCount",       0, 100000000, false, 0),
   int("users",  "messageLimit",       0, 100000000, false, 1000),
